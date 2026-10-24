@@ -1,0 +1,47 @@
+# ==============================================================================
+# SECRETS & CREDENTIALS (DO NOT COMMIT)
+# ==============================================================================
+tiktok.json
+*.json
+*.env
+*.key
+*.pem
+*.p8
+*.p12
+
+# ==============================================================================
+# NON-IOS PROJECTS & ANALYSIS (Android, tools, plans)
+# ==============================================================================
+gopro_rebuild/
+apk/
+gopro_apktool/
+gopro_decompiled/
+plans/
+AGENTS.md
+ARCHITECTURE_RTMP.md
+GOPRO_PROTOCOL_ANALYSIS.md
+
+# ==============================================================================
+# XCODE & SWIFT ARTIFACTS
+# ==============================================================================
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.ipa
+*.dSYM.zip
+*.dSYM
+.build/
+.swiftpm/
+Packages/
+
+# ==============================================================================
+# OS & IDE
+# ==============================================================================
+.DS_Store
+.idea/
+.opencode/
+*.iml
