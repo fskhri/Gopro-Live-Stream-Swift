@@ -182,15 +182,11 @@ public final class GoProPreviewPlayer: ObservableObject, @unchecked Sendable {
         resetStatistics()
         setState(.waitingForCamera)
 
-        do {
-            try await api.startPreview()
-        } catch {
-            setState(.failed("Could not start the preview stream. \(error.localizedDescription)"))
-            throw error
-        }
-
         let stream: AsyncStream<Data>
         do {
+            // Bind UDP listener before telling camera to stream. Otherwise
+            // camera's first packets can arrive before socket exists, causing
+            // intermittent black preview on startup.
             stream = try receiver.start()
         } catch {
             setState(.failed(error.localizedDescription))
@@ -198,6 +194,15 @@ public final class GoProPreviewPlayer: ObservableObject, @unchecked Sendable {
         }
 
         keepAlive.start()
+
+        do {
+            try await api.startPreview()
+        } catch {
+            receiver.stop()
+            keepAlive.stop()
+            setState(.failed("Could not start the preview stream. \(error.localizedDescription)"))
+            throw error
+        }
 
         let consumer = Task.detached(priority: .userInitiated) { [weak self] in
             for await datagram in stream {
