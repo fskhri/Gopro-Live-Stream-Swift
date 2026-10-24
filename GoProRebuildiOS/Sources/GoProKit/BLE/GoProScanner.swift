@@ -46,7 +46,7 @@ public final class GoProScanner: NSObject, ObservableObject {
 
     private func handleDiscovery(_ peripheral: CBPeripheral, advertisementData: [String: Any], rssi: Int) {
         let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
-        let name = advertisedName ?? peripheral.name ?? "HERO Camera"
+        let peripheralName = peripheral.name
 
         let advertisedServices = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
         let hasGoProService = advertisedServices.contains {
@@ -55,16 +55,30 @@ public final class GoProScanner: NSObject, ObservableObject {
                 || $0 == GoProBLE.serviceCameraMgmt
         }
 
-        guard GoProDevice.looksLikeGoPro(name) || hasGoProService else { return }
+        // Check GoPro manufacturer data (Company ID 0x02F2 = 754)
+        var hasGoProMfg = false
+        if let mfgData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data, mfgData.count >= 2 {
+            let companyId = UInt16(mfgData[0]) | (UInt16(mfgData[1]) << 8)
+            if companyId == 0x02F2 {
+                hasGoProMfg = true
+            }
+        }
+
+        let rawName = advertisedName ?? peripheralName
+        let isStrictName = rawName.map { GoProDevice.looksLikeGoPro($0) } ?? false
+
+        guard hasGoProMfg || hasGoProService || isStrictName else { return }
+
+        let finalName = rawName ?? "GoPro Camera"
 
         let device = GoProDevice(
             identifier: peripheral.identifier,
-            name: name,
+            name: finalName,
             rssi: rssi,
             isPaired: false
         )
 
-        if let index = devices.firstIndex(where: { $0.identifier == device.identifier }) {
+        if let index = devices.firstIndex(where: { $0.identifier == device.identifier || $0.name == device.name }) {
             devices[index] = device
         } else {
             devices.append(device)
