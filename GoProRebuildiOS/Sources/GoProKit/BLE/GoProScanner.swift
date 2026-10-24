@@ -78,7 +78,7 @@ public final class GoProScanner: NSObject, ObservableObject {
             isPaired: false
         )
 
-        if let index = devices.firstIndex(where: { $0.identifier == device.identifier || $0.name == device.name }) {
+        if let index = devices.firstIndex(where: { $0.identifier == device.identifier }) {
             devices[index] = device
         } else {
             devices.append(device)

@@ -48,7 +48,10 @@ struct ScanView: View {
                 .disabled(isConnecting || isBluetoothBlocked)
             }
         }
-        .task { await startScan() }
+        .task {
+            Task { await startScan() }
+            await reconnectWhenFound()
+        }
     }
 
     // MARK: - Body pieces
@@ -65,8 +68,19 @@ struct ScanView: View {
             }
         } else if isBluetoothBlocked {
             bluetoothBlockedState
-        } else if scanner.devices.isEmpty && !scanner.isScanning {
+        } else if scanner.devices.isEmpty && !scanner.isScanning && services.lastDeviceIdentifier == nil {
             emptyState
+        } else if services.lastDeviceIdentifier != nil && knownDevice == nil {
+            StatusBlock {
+                ProgressView().tint(Theme.accent)
+                Text("Looking for your saved GoPro…")
+                    .font(.body)
+                    .foregroundStyle(Theme.textPrimary)
+                Button("Scan for other cameras") {
+                    showAllDevices = true
+                }
+                .font(.subheadline)
+            }
         } else {
             deviceList
         }
@@ -119,6 +133,7 @@ struct ScanView: View {
         let sorted = scanner.devices.sorted { $0.rssi > $1.rssi }
         if showAllDevices { return sorted }
         if let known = knownDevice { return [known] }
+        if services.lastDeviceIdentifier != nil { return [] }
         return sorted  // No known device yet → show all so user can pick one
     }
 
@@ -161,21 +176,13 @@ struct ScanView: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 8) {
+        Group {
             if let message = errorMessage ?? services.lastError, scanner.devices.isEmpty {
                 ErrorBanner(message: message) { errorMessage = nil }
+                    .padding(16)
+                    .background(Theme.surface)
             }
-
-            Button {
-                Task { await connectOverWiFi() }
-            } label: {
-                Label("Connect via camera WiFi (10.5.5.9)", systemImage: "wifi")
-            }
-            .buttonStyle(SecondaryButton())
-            .disabled(isConnecting)
         }
-        .padding(16)
-        .background(Theme.surface)
     }
 
     // MARK: - State helpers
@@ -237,6 +244,21 @@ struct ScanView: View {
         }
     }
 
+    private func reconnectWhenFound() async {
+        guard services.lastDeviceIdentifier != nil else { return }
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline && !Task.isCancelled && !showAllDevices {
+            if knownDevice != nil {
+                isConnecting = true
+                let camera = await services.reconnectToLastCamera()
+                isConnecting = false
+                if camera == nil { errorMessage = services.lastError }
+                return
+            }
+            try? await Task.sleep(nanoseconds: 300_000_000)
+        }
+    }
+
     private func connect(_ device: GoProDevice) async {
         isConnecting = true
         errorMessage = nil
@@ -247,15 +269,6 @@ struct ScanView: View {
         }
     }
 
-    private func connectOverWiFi() async {
-        isConnecting = true
-        errorMessage = nil
-        let camera = await services.connectOverWiFiOnly()
-        isConnecting = false
-        if camera == nil {
-            errorMessage = services.lastError
-        }
-    }
 }
 
 /// One discovered camera.
@@ -275,6 +288,11 @@ private struct DeviceRow: View {
                     Text(device.name)
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
+                    if device.isPaired {
+                        Text("Saved · reconnect without pairing")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                    }
                     Text(signalLabel)
                         .font(.caption)
                         .monospacedDigit()
@@ -297,6 +315,7 @@ private struct DeviceRow: View {
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.corner))
         }
         .buttonStyle(.plain)
+        .disabled(device.isPaired && device.rssi == 0)
         .accessibilityLabel(
             device.isPaired ? "\(device.name), paired, \(signalLabel)" : "\(device.name), \(signalLabel)"
         )

@@ -20,10 +20,6 @@ struct ControlView: View {
                 VStack(spacing: 16) {
                     statusStrip
 
-                    if needsWifi {
-                        wifiCard
-                    }
-
                     modeSelector
 
                     previewSection
@@ -197,7 +193,7 @@ struct ControlView: View {
     private var previewSection: some View {
         PreviewCard(
             player: services.preview,
-            canStart: !needsWifi,
+            canStart: true,
             onStart: { Task { await startPreview() } },
             onStop: { Task { await stopPreview() } }
         )
@@ -451,6 +447,11 @@ struct ControlView: View {
     }
 
     private func startPreview() async {
+        if needsWifi {
+            await run { try await camera.connectWiFi() }
+            if needsWifi { return }
+        }
+
         do {
             try await services.preview.start()
         } catch {
@@ -469,7 +470,7 @@ struct ControlView: View {
 
     private func disconnect() async {
         await services.preview.stop()
-        await services.disconnect()
+        await services.disconnect(forgetSession: false)
     }
 }
 
@@ -574,7 +575,7 @@ private struct PreviewCard: View {
                 .disabled(!canStart)
 
                 if !canStart {
-                    Text("Join the camera's WiFi to use live preview.")
+                    Text("Start preview to connect to camera WiFi automatically.")
                         .font(.caption)
                         .foregroundStyle(Theme.textMuted)
                         .multilineTextAlignment(.center)

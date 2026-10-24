@@ -26,6 +26,7 @@ public final class GoProServices: ObservableObject {
 
     private let store: UserDefaults
     private static let lastDeviceKey = "gopro.lastDeviceIdentifier"
+    private var isReconnecting = false
 
     public init(store: UserDefaults = .standard) {
         self.store = store
@@ -48,6 +49,27 @@ public final class GoProServices: ObservableObject {
         return UUID(uuidString: raw)
     }
 
+    /// Reconnect to the previously used camera when it advertises again.
+    public func reconnectToLastCamera() async -> GoProCamera? {
+        guard connectedCamera == nil, !isReconnecting,
+              let identifier = lastDeviceIdentifier,
+              let device = scanner.devices.first(where: { $0.identifier == identifier }) else {
+            return connectedCamera
+        }
+        isReconnecting = true
+        let camera = await connect(to: device)
+        isReconnecting = false
+        return camera
+    }
+
+    public func storeLastCameraChoice(_ identifier: UUID?) {
+        if let identifier {
+            store.set(identifier.uuidString, forKey: Self.lastDeviceKey)
+        } else {
+            store.removeObject(forKey: Self.lastDeviceKey)
+        }
+    }
+
     /// Connect to a discovered camera and remember it.
     @discardableResult
     public func connect(to device: GoProDevice) async -> GoProCamera? {
@@ -58,7 +80,7 @@ public final class GoProServices: ObservableObject {
         do {
             try await camera.connect()
             connectedCamera = camera
-            store.set(device.identifier.uuidString, forKey: Self.lastDeviceKey)
+            storeLastCameraChoice(device.identifier)
             return camera
         } catch {
             lastError = error.localizedDescription
@@ -66,9 +88,12 @@ public final class GoProServices: ObservableObject {
         }
     }
 
-    public func disconnect() async {
+    public func disconnect(forgetSession: Bool = false) async {
         await connectedCamera?.disconnect()
         connectedCamera = nil
+        if forgetSession {
+            store.removeObject(forKey: Self.lastDeviceKey)
+        }
     }
 
     /// Connect straight to the camera hotspot without BLE, when the phone is

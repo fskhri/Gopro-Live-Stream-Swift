@@ -126,20 +126,24 @@ public final class GoProCamera: ObservableObject {
     // MARK: - Shutter and mode
 
     public func startRecording() async throws {
-        if await wifi.isCameraReachable() {
-            try await api.shutterStart()
-        } else {
-            try await ble.shutterOn()
+        if !(await wifi.isCameraReachable()) {
+            try await connectWiFi()
+            guard await wifi.isCameraReachable() else {
+                throw GoProError.cameraUnreachable
+            }
         }
+        try await api.shutterStart()
         status.isRecording = true
     }
 
     public func stopRecording() async throws {
-        if await wifi.isCameraReachable() {
-            try await api.shutterStop()
-        } else {
-            try await ble.shutterOff()
+        if !(await wifi.isCameraReachable()) {
+            try await connectWiFi()
+            guard await wifi.isCameraReachable() else {
+                throw GoProError.cameraUnreachable
+            }
         }
+        try await api.shutterStop()
         status.isRecording = false
     }
 

@@ -56,19 +56,17 @@ colour, carries emphasis. Technical values (`RSSI`, battery %, free space) use
 ## Structure
 
 - **Scan** — navigation title "Find GoPro", trailing scan/stop button, list rows
-  64pt min (icon, name, RSSI, paired chip), footer button "Connect via camera
-  WiFi (10.5.5.9)" for the already-joined-hotspot case. States: scanning,
-  connecting, empty, Bluetooth unavailable or denied, error banner with dismiss.
-- **Control** — status strip (camera name + BLE/WiFi badge + battery pill),
-  WiFi connect card while the hotspot is down, mode chips (Video / Photo /
-  Timelapse), live preview card, SD free space, 88pt shutter, Sleep and
-  Disconnect.
+  64pt min (icon, name, RSSI, paired chip). No direct WiFi connect action. States:
+  scanning, connecting, empty, Bluetooth unavailable or denied, error banner with dismiss.
+- **Control** — status strip (camera name + BLE/WiFi badge + battery pill), mode
+  chips (Video / Photo / Timelapse), live preview card, SD free space, 88pt
+  shutter, Sleep and Disconnect. Starting preview connects to camera WiFi first
+  when needed, then starts the camera stream in the same action.
 - **Live preview card** — 16:9 black surface. States: idle ("Start live
-  preview"), waiting (camera starting the stream), streaming (LIVE badge,
-  Stop), failed (error text + retry). Whole card is one accessibility element
-  with label/value. Tapping starts the stream; nothing auto-starts. The hint
-  "Join the camera's WiFi to use live preview." shows whenever the preview
-  cannot run, so the card never pretends to be a broken player.
+  preview"), waiting (camera joining WiFi or starting stream), streaming (LIVE
+  badge, Stop), failed (error text + retry). Whole card is one accessibility
+  element with label/value. Tapping connects camera WiFi if needed, then starts
+  the preview in the same action.
 - Only screens that exist are reachable. The Android app's Media, Presets,
   Settings, Camera Info and TikTok screens are not ported yet, so there are no
   links to them (no dead affordances).
